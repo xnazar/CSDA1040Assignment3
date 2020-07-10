@@ -6,7 +6,65 @@ date: "07/07/2020"
 output: html_document
 ---
 
+# 1.0 Abstract
+
+# 2.0 Introduction
+
+# 3.0 Objective
+
+# 4.0 Data Understanding
+
+### 4.1 About the Data
+
+https://www.kaggle.com/c/dogs-vs-cats/data
+
+### 4.2 Import Libraries
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
+
+Install Libraries
+```{r}
+# Install EBImage package if needed
+#install.packages("BiocManager")
+#BiocManager::install("EBImage")
+
+# Install Libraries
+library(keras)
+library(EBImage)
+library(stringr)
+library(pbapply)
+```
+
+
+### 4.3 Import Data
+
+Get working directory
+```{r}
+getwd()
+```
+
+Set working directory for training images
+```{r}
+# Set working directory
+image_dir_train <- "/Users/xen/Documents/CSDA 1040/ASSIGNMENT3/train"
+```
+
+View Samples
+```{r}
+# View images
+example_cat_image <- readImage(file.path(image_dir_train, "cat.1.jpg"))
+display(example_cat_image)
+```
+
+```{r}
+example_dog_image <- readImage(file.path(image_dir_train, "dog.1.jpg"))
+display(example_dog_image)
+```
+
+
+# 11.0 Bibliography
+
+https://www.kaggle.com/c/dogs-vs-cats/data
 
