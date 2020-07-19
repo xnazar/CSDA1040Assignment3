@@ -1,0 +1,508 @@
+---
+title: 'CSDA 1040: Assignment 3 - Group 4'
+author: Jose German, Anjana Pradeep Kumar, Anupama Radhakrishnan Kowsalya, and Xenel Nazar
+date: "07/18/2020"
+output: html_document
+---
+
+# 1.0 Abstract
+
+Human Interaction Proof (HIP) systems are currently deployed to restrict spam bots. Deep Learning implementations, like Convolutional Neural Networks, on images used on HIP systems are effective at classifying images based on the data provided to it. HIP systems would need to continually evolve to further improve security measures.
+
+# 2.0 Introduction
+
+Various web services deploy security measures, like Human Interaction Proof (HIP) systems that are designed to be challenges easily solved by Humans, but difficult for computers or bots to solve (Chellapilla, Larson, Simard, & Czerwinski, 2018). 
+
+One popular HIP implementation is the CAPTCHA (Completely Automated Public Turing test to tell Computers and Humans Apart) program, which was was coined in 2000 by Luis von Ahn, Manuel Blum, Nicholas Hopper, and John Langford of Carnegie Mellon University. CAPTCHAs can be applied in multiple cases, including preventing comments spam in blogs, protecting website registration, protecting email addresses from scrapers, online polls, preventing dictionary attacks in password systems, blocking search engine bots, as well blocking email worms and spam. The ESP-PIX Captcha script implementation is based on image recognition, where users are asked to review and recognize similar or common set of images (Carnegie Mellon University, 2010).
+
+The recent advancement and popularity of deep learning algorithms point to a question, if models can be developed that would be able to circumvent HIP systems like the ESP-PIX Captcha implementation. 
+
+# 3.0 Objective
+
+The objective of this project is to develop a model based on deep learning fundamentals and evaluate its effectiveness on images used on CAPTCHA or HIP systems. 
+
+# 4.0 Data Understanding
+
+### 4.1 About the Data
+
+The ASIRRA (Animal Species Image Recognition for Restricting Access) dataset currently hosted on Kaggle and by Microsoft is a collection of cat and dog images that was intended for use as a CAPTCHA (Completely Automated Public Turing test to tell Computers and Humans Apart) or a HIP (Human Interactive Proof) (Cukierski, 2014; Microsoft, 2017). 
+
+The data loaded on Kaggle is a subset of the original dataset provided by Petfinder.com to the Microsoft Research team, that consisted of three million images of cats and dogs (Cukierski, 2014). Petfinder.com works with nearly 11,000 animal shelters and adoption organizations in the United States, Canada, and Mexico to provide an online database of adoptable pets (Petfinder.com, 2018).
+
+### 4.2 Import Libraries
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+# Install EBImage package if needed
+#install.packages("BiocManager")
+#BiocManager::install("EBImage")
+```
+
+```{r}
+# Install Libraries
+library(keras)
+library(EBImage)
+library(stringr)
+library(pbapply)
+library(tensorflow)
+```
+
+### 4.3 Import Data
+
+Get working directory
+```{r}
+getwd()
+```
+
+Get directory for training and test images
+```{r}
+# Get working directory
+original_dataset_dir_train <- "/Users/xen/Documents/CSDA 1040/ASSIGNMENT3/train"
+original_dataset_dir_test <- "/Users/xen/Documents/CSDA 1040/ASSIGNMENT3/test1"
+```
+
+# 5.0	Data Exploration and Preparation
+
+### 5.1 Data Overview
+
+Verify number of images
+```{r}
+# Verify number of images
+cat("Total Training Images:", length(list.files(original_dataset_dir_train)), "\n")
+cat("Total Test Images:", length(list.files(original_dataset_dir_test)), "\n")
+```
+
+With over 25,000 training and 12,500 test images, we may have to subset the data to an easily working number of images.
+
+View sample cat image
+```{r}
+# View sample cat image
+example_cat_image <- readImage(file.path(original_dataset_dir_train, "cat.1.jpg"))
+display(example_cat_image)
+```
+
+View sample dog image
+```{r}
+# View sample dog image
+example_dog_image <- readImage(file.path(original_dataset_dir_train, "dog.1.jpg"))
+display(example_dog_image)
+```
+
+```{r}
+# View sample test image
+example_test_image <- readImage(file.path(original_dataset_dir_test, "1.jpg"))
+display(example_test_image)
+```
+
+The training images have been labeled the images as either "cat" or "dog", while the test images have not.
+
+### 5.2 Create Working Directory for Subset of Data
+
+Note, code from the Deep Learning with R book was referenced for this project (Chollet & Allaire, 2018).
+```{r}
+# Create Working Directory
+working_dir <- "/Users/xen/Documents/CSDA 1040/ASSIGNMENT3/working_dir"
+dir.create(working_dir)
+```
+
+```{r}
+# Create Training Folder
+train_dir <- file.path(working_dir, "train")
+dir.create(train_dir)
+# Create Validation Folder
+validation_dir <- file.path(working_dir, "validation")
+dir.create(validation_dir)
+# Create Test Folder
+test_dir <- file.path(working_dir, "test")
+dir.create(test_dir)
+```
+
+```{r}
+# Create Cats and Dogs Subfolders for Training
+train_cats_dir <- file.path(train_dir, "cats")
+dir.create(train_cats_dir)
+train_dogs_dir <- file.path(train_dir, "dogs")
+dir.create(train_dogs_dir)
+# Create Cats and Dogs Subfolders for Validation
+validation_cats_dir <- file.path(validation_dir, "cats")
+dir.create(validation_cats_dir)
+validation_dogs_dir <- file.path(validation_dir, "dogs")
+dir.create(validation_dogs_dir)
+```
+
+Place images in folders
+```{r}
+# Set 1000 Cat images for Training
+fnames <- paste0("cat.", 1:1000, ".jpg")
+file.copy(file.path(original_dataset_dir_train, fnames),
+          file.path(train_cats_dir))
+
+# Set 500 Cat images for Validation
+fnames <- paste0("cat.", 1001:1500, ".jpg")
+invisible(file.copy(file.path(original_dataset_dir_train, fnames),
+          file.path(validation_cats_dir)))
+
+# Set 1000 Dog images for Training
+fnames <- paste0("dog.", 1:1000, ".jpg")
+invisible(file.copy(file.path(original_dataset_dir_train, fnames),
+          file.path(train_dogs_dir)))
+
+# Set 500 Dog images for Validation
+fnames <- paste0("dog.", 1001:1500, ".jpg")
+invisible(file.copy(file.path(original_dataset_dir_train, fnames),
+          file.path(validation_dogs_dir)))
+
+# Set 500 images for Testing
+fnames <- paste0(1501:2000, ".jpg")
+invisible(file.copy(file.path(original_dataset_dir_test, fnames),
+          file.path(test_dir)))
+```
+
+```{r}
+# Verify number of Cat images
+cat("Total Training Cat Images:", length(list.files(train_cats_dir)), "\n")
+cat("Total Validation Cat Images:", length(list.files(validation_cats_dir)), "\n")
+
+# Verify number of Dog images
+cat("Total Training Dog Images:", length(list.files(train_dogs_dir)), "\n")
+cat("Total Validation Dog Images:", length(list.files(validation_dogs_dir )), "\n")
+
+# Verify number of Test images
+cat("Total Test Images:", length(list.files(test_dir)), "\n")
+```
+
+# 6.0 Modeling and Evaluation
+
+### 6.1 Model Setup
+
+```{r}
+# Model Setup
+model <- keras_model_sequential() %>%
+  layer_conv_2d(filters = 32, kernel_size = c(3, 3), activation = "relu",
+                input_shape = c(150, 150, 3)) %>%
+  layer_max_pooling_2d(pool_size = c(2, 2)) %>%
+  layer_conv_2d(filters = 64, kernel_size = c(3, 3), activation = "relu") %>%
+  layer_max_pooling_2d(pool_size = c(2, 2)) %>%
+  layer_conv_2d(filters = 128, kernel_size = c(3, 3), activation = "relu") %>%
+  layer_max_pooling_2d(pool_size = c(2, 2)) %>%
+  layer_conv_2d(filters = 128, kernel_size = c(3, 3), activation = "relu") %>%
+  layer_max_pooling_2d(pool_size = c(2, 2)) %>%
+  layer_flatten() %>%
+  layer_dense(units = 512, activation = "relu") %>%
+  layer_dense(units = 1, activation = "sigmoid")
+```
+
+The following are additional steps that need to be defined before the model is trained. The loss function measures how accurate the model is during training, the optimizer is how the model is updated based on the data it receives, and lastly is the accuracy metrics which monitors the training steps (Allaire, 2020).
+```{r}
+# Model Compile
+model %>% compile(
+  loss = "binary_crossentropy",
+  optimizer = optimizer_rmsprop(lr = 1e-4),
+  metrics = c("acc")
+)
+```
+
+```{r}
+# Model Summary
+summary(model)
+```
+
+### 6.2 Data Preprocessing
+
+```{r}
+# Rescale Images by 1/255
+train_datagen <- image_data_generator(rescale = 1/255) 
+validation_datagen <- image_data_generator(rescale = 1/255)
+```
+
+```{r}
+train_generator <- flow_images_from_directory(
+  # Target Directory
+  train_dir,                                                       
+  train_datagen,
+  # Resize images to 150 X 150
+  target_size = c(150, 150),                                       
+  # 20 images per batch
+  batch_size = 20,                                                 
+  class_mode = "binary"
+)
+
+validation_generator <- flow_images_from_directory(
+  # Target Directory
+  validation_dir,
+  validation_datagen,
+  # Resize images to 150 X 150
+  target_size = c(150, 150),
+  # 20 images per batch
+  batch_size = 20,
+  class_mode = "binary"
+)
+```
+
+
+### 6.3 Model Fitting
+
+Fitting the model using the batch generator.On the generator we need to define the steps per epoch for the training and validation images. For the training images we will set the steps as 100 (# of Training Images / Batch Size) and 50 for validation (# of Validation Images / Batch Size)
+```{r}
+history <- model %>% fit_generator(
+  train_generator,
+  # steps_per_epoch = # of Training Images / Batch Size -> 2,000/20
+  steps_per_epoch = 100,
+  epochs = 30,
+  validation_data = validation_generator,
+  # validation_steps = # of Validation Images / Batch Size -> 1,000/20
+  validation_steps = 50
+)
+```
+
+### 6.4 Initial Model Results / Evaluation
+
+```{r}
+# Save model
+model %>% save_model_hdf5("cats_and_dogs_small_1.h5")
+```
+
+```{r}
+# Plot Model Results
+plot(history)
+```
+
+Based on the plot and accuracy listed on the last epoch of 0.9935, there is likely a case of over-fitting due to the small sample size when training the data. We can use tools like Data Augmentation and Dropout Regularization in Keras to improve the model overall. 
+
+### 6.5 Data Augmentation
+
+Creating new training data from existing training data is used in a technique called Data Augmentation. This is done in image data augmentation by creating transformed versions of images in the training data set, expanding the training data into more possible examples (Brownlee, _How to Configure Image Data Augmentation in Keras_ 2019).
+
+```{r}
+datagen <- image_data_generator(
+  # Rescale Images by 1/255
+  rescale = 1/255,
+  # Rotate picture by 40 degrees
+  rotation_range = 40,
+  # Randomly translate picture vertically and horizontally
+  width_shift_range = 0.2,
+  height_shift_range = 0.2,
+  # Shear transformation
+  shear_range = 0.2,
+  # Randomly zoom inside a picture
+  zoom_range = 0.2,
+  # Flip half of the image horizontally 
+  horizontal_flip = TRUE,
+)
+```
+
+Sample augmented images
+```{r}
+fnames <- list.files(train_cats_dir, full.names = TRUE)
+# Choose one image to augment
+img_path <- fnames[[1]]                                               
+img <- image_load(img_path, target_size = c(150, 150))                
+img_array <- image_to_array(img)                                      
+img_array <- array_reshape(img_array, c(1, 150, 150, 3))              
+
+augmentation_generator <- flow_images_from_data(img_array,generator = datagen,batch_size = 1)
+
+x <- par(mfrow = c(2, 2), pty = "s", mar = c(1, 0, 1, 0))            
+for (i in 1:4) {                                                      
+  batch <- generator_next(augmentation_generator)                     
+  plot(as.raster(batch[1,,,]))                                        
+}                                                                     
+par(x) 
+```
+### 6.6 Set New Data-Augmentation Generators
+
+```{r}
+train_generator <- flow_images_from_directory(
+  # Target Directory
+  train_dir,                                                       
+  # Use revised datagen
+  datagen,
+  # Resize images to 150 X 150
+  target_size = c(150, 150),                                       
+  # 20 images per batch
+  batch_size = 20,                                                 
+  class_mode = "binary"
+)
+
+validation_generator <- flow_images_from_directory(
+  # Target Directory
+  validation_dir,
+  # Use previous datagen
+  validation_datagen,
+  # Resize images to 150 X 150
+  target_size = c(150, 150),
+  # 20 images per batch
+  batch_size = 20,
+  class_mode = "binary"
+)
+```
+
+### 6.7 Revised Model
+
+For the revised model, we need to implement Dropout Regularization which will help eliminate any generalization errors due to overfitting.Dropout Regularization during model training some of the layer outputs are randomly ignored or dropped, and each update to a layer during training is performed with a different view of the configured layer (Brownlee, _Dropout Regularization in Deep Learning Models With Keras_ 2019).
+
+```{r}
+# Revised model with dropout
+model <- keras_model_sequential() %>%
+  layer_conv_2d(filters = 32, kernel_size = c(3, 3), activation = "relu",
+                input_shape = c(150, 150, 3)) %>%
+  layer_max_pooling_2d(pool_size = c(2, 2)) %>%
+  layer_conv_2d(filters = 64, kernel_size = c(3, 3), activation = "relu") %>%
+  layer_max_pooling_2d(pool_size = c(2, 2)) %>%
+  layer_conv_2d(filters = 128, kernel_size = c(3, 3), activation = "relu") %>%
+  layer_max_pooling_2d(pool_size = c(2, 2)) %>%
+  layer_conv_2d(filters = 128, kernel_size = c(3, 3), activation = "relu") %>%
+  layer_max_pooling_2d(pool_size = c(2, 2)) %>%
+  layer_flatten() %>%
+  layer_dropout(rate = 0.5) %>%
+  layer_dense(units = 512, activation = "relu") %>%
+  layer_dense(units = 1, activation = "sigmoid")
+```
+
+Compile Model
+```{r}
+# Model Compile
+model %>% compile(
+  loss = "binary_crossentropy",
+  optimizer = optimizer_rmsprop(lr = 1e-4),
+  metrics = c("acc")
+)
+```
+
+```{r}
+# Model Summary
+summary(model)
+```
+
+### 6.8 Train with revised model
+
+```{r}
+history <- model %>% fit_generator(
+  train_generator,
+  # steps_per_epoch = # of Training Images / Batch Size -> 2,000/20
+  steps_per_epoch = 100,
+  epochs = 30,
+  validation_data = validation_generator,
+  # validation_steps = # of Validation Images / Batch Size -> 1,000/20
+  validation_steps = 50
+)
+```
+
+### 6.9 Revised Model Evaluation
+
+```{r}
+# Save revised model
+model %>% save_model_hdf5("cats_and_dogs_small_2.h5")
+```
+
+```{r}
+# Plot Revised Model Results
+plot(history)
+```
+
+The model now has an accuracy of 0.7490, and as the plot shows is now tracking more in-line with the validation data. 
+
+# 7.0 Model Predictions
+
+### 7.1 Select 1 Cat and Dog Picture From Test Data
+
+```{r}
+# View sample test dog image
+test_image_dog <- readImage(file.path(test_dir, "1501.jpg"))
+display(test_image_dog)
+```
+
+```{r}
+# View sample test cat image
+test_image_cat <- readImage(file.path(test_dir, "1502.jpg"))
+display(test_image_cat)
+```
+
+### 7.2 Load and Augment Images
+
+```{r}
+# Load and Augment Dog Image
+img_path1 <- "/Users/xen/Documents/CSDA 1040/ASSIGNMENT3/test1/1501.jpg"
+img <- image_load(img_path1, target_size = c(150, 150))
+img_dog <- image_to_array(img)
+img_dog <- array_reshape(img_dog, c(1, 150, 150, 3))
+img_dog <- img_dog / 255
+
+dim(img_dog) 
+```
+
+```{r}
+# Load and Augment Cat Image
+img_path2 <- "/Users/xen/Documents/CSDA 1040/ASSIGNMENT3/test1/1502.jpg"
+img <- image_load(img_path1, target_size = c(150, 150))
+img_cat <- image_to_array(img)
+img_cat <- array_reshape(img_cat, c(1, 150, 150, 3))
+img_cat <- img_dog / 255
+
+dim(img_cat) 
+```
+
+### 7.3 Generate Predictions
+
+The values generated by the model for prediction, will be shown as 0 for cats and 1 for dogs. 
+```{r}
+# Actual Prediction for Dog Image
+class_pred <- model %>% predict_classes(img_dog)
+class_pred[1]
+```
+
+```{r}
+# Prediction Score for Dog Image
+preds <- model %>% predict(img_dog)
+preds[1,]
+```
+
+
+```{r}
+# Actual Prediction
+class_pred <- model %>% predict_classes(img_cat)
+class_pred[1]
+```
+
+```{r}
+# Prediction Score
+preds <- model %>% predict(img_cat)
+preds[1,]
+```
+
+The model is able to effectively identify a cat or a dog based on an image provided. 
+
+# 8.0 Conclusions and Recommendations
+
+CAPTCHA or HIP systems using images are no longer effective as a security solution to stop spam or computer bots. Deep Learning implementations such as Convolutional Neural Networks can effectively classify images that it has been trained on. 
+
+Those that deploy image classifying HIP or CAPTCHA systems, can take certain steps to improve the overall security of end users. First, HIP systems can use a diverse set of images. Images of various subjects like various other animals or objects would decrease the overall accuracy of convolutional neural networks if the subject was not included in the training data. HIP systems can also include other mediums, such as video and audio clips, as this may be more of a challenge to program model in spam bots. Another option is to implement interactive elements to HIP or CAPTCHA systems that require users to interact with objects, like moving segments of a picture to complete a puzzle. 
+
+Lastly, the underlying data used in image HIP or CAPTCHA systems would need to have frequent or recurring refreshes and reviews to determine overall effectiveness at ensuring the security of the end users. 
+
+# 9.0 Deployment
+
+The underlying code of this markdown report, can be found on [Github](https://github.com/xnazar/CSDA1040Assignment3) and on the Shiny web application About page as listed on [shinyapps.io](https://jose-g.shinyapps.io/catsdogs)
+
+# 10.0 Bibliography
+
+Allaire, J. (2020). TensorFlow for R - Basic Image Classification. Retrieved July 10, 2020, from https://tensorflow.rstudio.com/tutorials/beginners/basic-ml/tutorial_basic_classification/
+
+Brownlee, J. (2019, July 05). How to Configure Image Data Augmentation in Keras. Retrieved July 10, 2020, from https://machinelearningmastery.com/how-to-configure-image-data-augmentation-when-training-deep-learning-neural-networks/
+
+Brownlee, J. (2019, September 13). Dropout Regularization in Deep Learning Models With Keras. Retrieved July 10, 2020, from https://machinelearningmastery.com/dropout-regularization-deep-learning-models-keras/
+
+Carnegie Mellon University. (2010). CAPTCHA: Telling Humans and Computers Apart Automatically. Retrieved July 10, 2020, from http://www.captcha.net/
+
+Chellapilla, K., Larson, K., Simard, P., &amp; Czerwinski, M. (2018, October 17). Designing Human Friendly Human Interaction Proofs (HIPS). Retrieved July 10, 2020, from https://www.microsoft.com/en-us/research/publication/designing-human-friendly-human-interaction-proofs-hips/
+
+Chollet, F., &amp; Allaire, J. J. (2018). Deep learning for computer vision. In Deep Learning with R. Shelter Island, NY: Manning Publications. Retrieved July 10, 2020, from https://livebook.manning.com/book/deep-learning-with-r/chapter-5
+
+Cukierski, W. (2014). Dogs vs. Cats. Retrieved July 10, 2020, from https://www.kaggle.com/c/dogs-vs-cats/data
+
+Microsoft. (2017, October 2). Kaggle Cats and Dogs Dataset. Retrieved July 10, 2020, from https://www.microsoft.com/en-us/download/details.aspx?id=54765
+
+Petfinder.com. (2018, June 22). About Petfinder. Retrieved July 10, 2020, from https://www.petfinder.com/about/

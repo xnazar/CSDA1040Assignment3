@@ -1,0 +1,12 @@
+name: catsdogs
+title: catsdogs
+username:
+account: jose-g
+server: shinyapps.io
+hostUrl: https://api.shinyapps.io/v1
+appId: 2581794
+bundleId: 3407938
+url: https://jose-g.shinyapps.io/catsdogs/
+when: 1595123245.40717
+asMultiple: FALSE
+asStatic: FALSE
